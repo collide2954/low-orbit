@@ -60,7 +60,7 @@ class Session:
 
     def track(self, name: str) -> np.ndarray:
         if name not in self.tracks:
-            self.tracks[name] = np.zeros((self.total, 2))
+            self.tracks[name] = np.zeros((self.total, 2), dtype=np.float32)
         return self.tracks[name]
 
     def add(self, name: str, audio: np.ndarray, seconds: float, gain: float = 1.0) -> None:
@@ -186,10 +186,16 @@ def _tone(audio: np.ndarray, strip: Strip) -> np.ndarray:
 def mixdown(
     session: Session, automation: dict[str, np.ndarray] | None = None
 ) -> tuple[np.ndarray, dict[str, float]]:
-    """Make the master from the tracks of a session. Return the sound and some numbers.
+    """Make the master from the tracks of a session. Return the sound and some numbers."""
+    return master(premix(session, automation))
 
-    `automation` gives a gain curve (one value for each sample) for some tracks,
-    or for all tracks under the name "master".
+
+def premix(session: Session, automation: dict[str, np.ndarray] | None = None) -> np.ndarray:
+    """Make the mix of a session, before the master.
+
+    `automation` gives a gain curve (one value for each sample) for some
+    tracks, or for the mix under the name "master". The name "sweep" gives
+    the cutoff frequency of a low-pass filter for the mix, in hertz.
     """
     automation = automation or {}
     total = session.total
@@ -246,12 +252,16 @@ def mixdown(
         space = effects.reverb(wet, plate, tail=False)
         space = signal.sosfilt(dsp.highpass(220.0, 2), space, axis=0)
         mix += space * 0.2
-    return master(mix, automation.get("master"))
+    if "sweep" in automation:
+        mix = effects.sweep(mix, automation["sweep"][:total], "lowpass", 0.8)
+    if "master" in automation:
+        mix = mix * automation["master"][:total, None]
+    return mix.astype(np.float32)
 
 
 def master(mix: np.ndarray, gain: np.ndarray | None = None) -> tuple[np.ndarray, dict[str, float]]:
     """Make the master: tone, a slow compressor, tape saturation, loudness, and a limiter."""
-    out = signal.sosfilt(dsp.highpass(27.0, 2), mix, axis=0)
+    out = signal.sosfilt(dsp.highpass(27.0, 2), mix.astype(np.float64), axis=0)
     out = effects.equalize(
         out,
         dsp.peaking(280.0, -3.0, 0.8),
@@ -263,7 +273,11 @@ def master(mix: np.ndarray, gain: np.ndarray | None = None) -> tuple[np.ndarray,
     peak = float(np.abs(out).max()) or 1.0
     out = out / peak * dsp.db(-6.0)
     out = effects.compress(out, -16.0, 2.0, 0.03, 0.25, knee_db=8.0, makeup_db=2.0)
-    out = effects.saturate(out, 2.5) * dsp.db(-1.0)
+    # The saturation works at four times the sample rate: it takes the sound in parts.
+    part = 30 * RATE
+    for start in range(0, len(out), part):
+        out[start : start + part] = effects.saturate(out[start : start + part], 2.5)
+    out *= dsp.db(-1.0)
     measured = loudness.integrated(loudness.block_power(out.astype(np.float32)))
     out = out * dsp.db(TARGET_LUFS - measured)
     out = effects.limit(effects.clip(out, -0.3), -1.0)

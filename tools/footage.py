@@ -25,12 +25,12 @@ AGENT = {"User-Agent": "footage-script/1.0"}
 
 # The identifier in the library, and the size of the file ("orig", "large", "medium").
 VIDEOS = [
-    ("jsc2021m000138_4K_Earth_Views_Extended_Cut_for_Earth_Day_ 2021_210422-4KMP4", "large"),
+    ("jsc2021m000138_4K_Earth_Views_Extended_Cut_for_Earth_Day_ 2021_210422-4KMP4", "medium"),
     ("jsc2022m000172_Earth_in_4K_Expedition_65_Edition", "large"),
     ("jsc2023m000111_Earth_in_4K_Space_Station_Expedition_67_68_Edition", "large"),
     ("Earth Views from the International Space Station", "large"),
     ("GSFC_20180124_m12825_ISS_Airglow", "large"),
-    ("HD 049 Mercury_Gemini_Apollo_Resource Reel 1", "large"),
+    ("HD 049 Mercury_Gemini_Apollo_Resource Reel 1", "medium"),
 ]
 
 
@@ -55,7 +55,12 @@ def assets(identifier: str) -> list[str]:
 
 def details(identifier: str) -> dict:
     url = "https://images-api.nasa.gov/search?" + urllib.parse.urlencode({"nasa_id": identifier})
-    items = json.loads(_get(url))["collection"]["items"]
+    try:
+        request = urllib.request.Request(url, headers=AGENT)
+        with urllib.request.urlopen(request, timeout=120) as reply:
+            items = json.load(reply)["collection"]["items"]
+    except OSError:
+        return {}
     return items[0]["data"][0] if items else {}
 
 
