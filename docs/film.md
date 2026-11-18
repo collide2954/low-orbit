@@ -16,6 +16,7 @@ The film looks like a strip of 16 mm film that goes through a projector. Code ma
 | Splice | A white flash and a jump of the picture at the start of each section |
 | Lamp | The brightness moves a little with each kick drum |
 | Captions | Typewriter letters at the start of a section |
+| Title card | A small paper label with the title and the name of the owner, at the bottom left; it goes away after 5 seconds |
 
 ## How the film is not regular
 
