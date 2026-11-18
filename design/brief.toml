@@ -1,0 +1,40 @@
+# Low Orbit: design brief.
+#
+# This file records the decisions of the owner of the project.
+# Do not change a decision in this file without the agreement of the owner.
+# The words in quotation marks are the words of the owner.
+
+[work]
+title = "Low Orbit"
+duration_minutes = 8
+request = "I want you to study jake chudnow and people who make music like Jake chudnow. I want to make an 8 minute piece that is very convincing, it needs to sound wonderful and extremely high quality and professional."
+method = "Figure out what parameters and values those are find meet those goals."
+decided = 2026-11-17
+
+[film]
+request = "I want you to also make a film reel esque video of low orbit footage and photography. Give it character, it should look and feel like the music and be kind of irregular."
+# The owner selected "Yes, NASA + ESA" (2026-11-17): the project can download public
+# material of NASA (public domain) and of ESA (CC BY-SA 3.0 IGO). Each file has a row
+# in the credits table, and no file is in the repository.
+footage = ["NASA", "ESA"]
+
+[sound]
+# The owner selected "Code + free samples" (2026-11-17): synthesizers in code, and free
+# samples for the drums and the electric piano.
+sources = ["synthesis in code", "free samples"]
+
+[repository]
+visibility = "public"      # The owner selected "Public on GitHub" (2026-11-17).
+start = "The synthesis code of G-Type Star."
+
+[licence]
+# As in the three projects before this one. The owner must examine this decision.
+music_and_documents = "CC BY 4.0"
+code = "MIT"
+
+# Decisions that the composer's assistant made while the owner was not available.
+# The owner must examine each decision. Each decision is easy to change.
+[pending_review]
+composer_name = "The composer of the work is Brett Gilio, as in the projects before this one."
+samples = "The samples are those that G-Type Star has on this computer: a 1977 Rhodes (jRhodes3d), recorded drum kits, and percussion. No new sample is downloaded."
+film_licence = "If the film has ESA material, the film has the licence CC BY-SA 3.0 IGO for that material, and the credits name ESA."
