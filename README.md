@@ -27,8 +27,15 @@ uv run python tools/footage.py      # the footage (6 GB)
 uv run python -m loworbit.film      # the film
 ```
 
-The film needs `ffmpeg`. The electric piano and the drums need free sample libraries in
-`.cache/samples` (jRhodes3d, Naked Drums, VCSL, DRSKit).
+The film needs `ffmpeg`. The electric piano and the recorded drums need free sample libraries
+in `.cache/samples`: jRhodes3d (the electric piano) and DRSKit (the drums). If DRSKit is not
+there, the drums are only the drum machine.
+
+## Credits of the samples
+
+- Drum samples: DRSKit 2.1, the DrumGizmo team and DRSDrums (Deva and Lars Muldjord), licence
+  CC BY 4.0, <https://www.drumgizmo.org>.
+- Electric piano samples: jRhodes3d (a 1977 Rhodes Mark I).
 
 ## Licences
 

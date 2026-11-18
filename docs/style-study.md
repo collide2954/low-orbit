@@ -59,7 +59,7 @@ The reference lists of listeners put these artists near the model. Each has one 
 | Tempo | 80 to 100 quarter notes in a minute; "Moon Men" has 93 | 88 | R, K |
 | Metre | 4/4 | 4/4, with some bars of a different length (see the plan of the work) | R |
 | Timing of the drums | Each second sixteenth note is late (swing of hip-hop); the snare drum is a little behind the beat; no stroke is exactly on the grid | Swing 12 percent of a sixteenth note; snare drum 9 ms late; each stroke moves by about 3.5 ms | K |
-| Drum sound | A drum machine with recorded drums on top; dull, with saturation; a short room | Drum machine in code (the recorded drums on top are not made yet); saturation; low-pass filter at 11.5 kHz; parallel compressor | R, K |
+| Drum sound | A drum machine with recorded drums on top; dull, with saturation; a short room | Drum machine in code; on top of each stroke, a recorded stroke of a real kit (DRSKit), 2 ms early or late, without its low range; saturation; low-pass filter at 11.5 kHz; parallel compressor | R, K |
 | Harmony | A loop of three or four chords; minor keys and modes; chords with a seventh and a ninth; one "wrong" note that gives the colour | Loops of four chords in D minor; a second part in a far key; the Phrygian second step as the colour note | R, K |
 | Melody | Short, with repeated notes and steps; syncopation; one clear leap | As the style; the leap is a fifth up | R |
 | Pad | A polyphonic analog synthesizer (Juno-6): one oscillator with saw and pulse, a sub oscillator, a low-pass filter with a slow envelope, a chorus | A model of that instrument: saw, pulse with a slow change of its width, sub oscillator, ladder filter, chorus with two rates | R, K |

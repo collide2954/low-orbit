@@ -15,7 +15,7 @@ away.
 | Loop of the day | B-flat maj9, C 6/9, D m9, A m11 (D minor) |
 | Bridge | has A7 flat 9 (the colour of the Phrygian mode) |
 | Loop of the night | B-flat m9, G-flat maj7, D-flat add9, A-flat 6 (B-flat minor) |
-| Loudness | -14.05 LUFS; range 11 LU; peak -1.0 dB |
+| Loudness | -12.4 LUFS; range 8.3 LU; peak -1.0 dB |
 
 `docs/style-study.md` gives the reasons for these values.
 

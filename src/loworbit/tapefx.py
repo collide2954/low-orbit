@@ -42,7 +42,7 @@ def warp(sound: np.ndarray, cents: np.ndarray) -> np.ndarray:
 
 
 def hiss(total: int, level_db: float = -52.0, seed: int = 2) -> np.ndarray:
-    """Return tape hiss: noise with more level in the high range, a little different left and right."""
+    """Return tape hiss: noise with more level in the high range, not the same left and right."""
     random = np.random.default_rng(seed)
     noise = random.normal(0.0, 1.0, (total, 2))
     noise = signal.sosfilt(dsp.shelf(3000.0, 8.0, high=True), noise, axis=0)

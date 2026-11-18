@@ -21,6 +21,8 @@ from .audio.synth import LineNote
 RATE = dsp.RATE
 TARGET_LUFS = -12.0  # the reference recordings are near -10; streaming services use -14
 VARIANTS = 3  # the same note has this number of different renders
+# The level of the recorded stroke of each drum, before the strip of the track "kit".
+KIT_GAIN = {"kick": 0.5, "snare": 0.6, "rim": 0.5, "hat": 0.45, "open": 0.4}
 
 
 @dataclass
@@ -92,7 +94,7 @@ class Session:
             self.add(name, self.cache[key], start + number * strum)
 
     def line(self, name: str, patch, notes, pan: float = 0.0) -> None:
-        """Play a line of one voice. Each note: (bar, beat, length in beats, MIDI, level, legato)."""
+        """Play a line of one voice. A note: (bar, beat, length in beats, MIDI, level, legato)."""
         found = []
         for bar, beat, length, midi, level, legato in notes:
             start = self.time(bar, beat, swung=False)
@@ -138,6 +140,10 @@ class Session:
             side = 0.25 if drum == "hat" else 0.35
             audio = effects.pan(audio, side)
         self.add(track, audio, moment)
+        # A recorded stroke of a real kit on top of the machine, a little late or early.
+        recorded = sound.kit(drum, level, random) if sound.kit_available() else None
+        if recorded is not None:
+            self.add("kit", recorded, moment + random.normal(0.0, 0.002), KIT_GAIN[drum])
         if drum == "kick":
             self.kicks.append(moment)
 
@@ -174,6 +180,7 @@ STRIPS = {
     "kick": Strip(-8.0, 28.0, 7000.0, 4.0, width=0.0, wobble=0.0),
     "snare": Strip(-6.5, 130.0, 10000.0, 5.0, width=0.6, reverb=0.14, wobble=0.0),
     "hats": Strip(-12.5, 600.0, 12000.0, 3.0, reverb=0.06, wobble=0.0),
+    "kit": Strip(-9.0, 90.0, 9000.0, 4.0, width=0.8, reverb=0.08, wobble=0.0),
     "air": Strip(0.0, 60.0, 12000.0, 0.0, wobble=0.0),
 }
 
@@ -228,7 +235,7 @@ def premix(session: Session, automation: dict[str, np.ndarray] | None = None) ->
         out = out * dsp.db(strip.gain_db)
         wet += out * strip.reverb
         echo += out * strip.echo
-        if name in ("kick", "snare", "hats"):
+        if name in ("kick", "snare", "hats", "kit"):
             drums += out
         else:
             mix += out

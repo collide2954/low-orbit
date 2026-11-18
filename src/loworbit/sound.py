@@ -11,12 +11,14 @@ of a 1977 Rhodes), bells, and a drum machine.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
 import soundfile
 import soxr
+from scipy import signal
 
 from .audio import drumsynth, dsp, effects
 from .audio.synth import Envelope, FMPatch, Operators, Osc, Patch
@@ -204,3 +206,88 @@ def drum(name: str, level: float, seed: int) -> np.ndarray:
     if name == "open":
         return drumsynth.hat(level, seed, decay=0.22, tone=0.92)
     raise ValueError(f"no drum with the name {name}")
+
+
+# ----------------------------------------------------------------------------
+# The recorded drums (DRSKit, DrumGizmo team, CC BY 4.0)
+# ----------------------------------------------------------------------------
+
+# The channels of each file of the kit, in their sequence.
+_KIT_CHANNELS = (
+    "AmbL", "AmbR", "Hihat", "Kdrum_back", "Kdrum_front", "OHL", "OHR", "Ride",
+    "Snare_bottom", "Snare_top", "Tom1", "Tom2", "Tom3",
+)  # fmt: skip
+
+
+@dataclass(frozen=True)
+class KitDrum:
+    """How one drum of the machine gets a recorded stroke."""
+
+    folder: str
+    close: tuple[str, ...]  # the microphones near the drum
+    seconds: float  # the length that the work uses
+    low_cut: float  # the machine gives the range below this frequency
+    overhead: float = 0.45  # the level of the pair above the kit
+    room: float = 0.3  # the level of the pair in the room
+
+
+KIT = {
+    "kick": KitDrum("Kdrum_with_contact", ("Kdrum_front", "Kdrum_back"), 0.5, 95.0, 0.3, 0.25),
+    "snare": KitDrum("Snare", ("Snare_top",), 0.8, 150.0),
+    "rim": KitDrum("Snare_rim", ("Snare_top",), 0.5, 200.0),
+    "hat": KitDrum("Hihat_closed", ("Hihat",), 0.3, 500.0, 0.5, 0.15),
+    "open": KitDrum("Hihat_semi_open", ("Hihat",), 0.55, 500.0, 0.5, 0.15),
+}
+
+
+@lru_cache(maxsize=8)
+def _kit_strokes(name: str) -> tuple[np.ndarray, ...]:
+    """Return all recorded strokes of one drum, from the softest to the loudest.
+
+    Each stroke has two channels, starts 1 ms before its attack, and has a
+    largest value of 1.
+    """
+    spec = KIT[name]
+    folder = SAMPLES / "drskit" / "DRSKit" / spec.folder
+    found = re.findall(
+        r'<sample name="[^"]*" power="([0-9.eE+-]+)">\s*<audiofile[^>]*file="([^"]+)"',
+        (folder / f"{spec.folder}.xml").read_text(),
+    )
+    if not found:
+        raise FileNotFoundError(f"no recorded strokes in {folder}")
+    column = {channel: number for number, channel in enumerate(_KIT_CHANNELS)}
+    strokes = []
+    for _power, file in sorted(found, key=lambda item: float(item[0])):
+        data, rate = soundfile.read(str(folder / file), dtype="float64")
+        close = sum(data[:, column[channel]] for channel in spec.close) / len(spec.close)
+        left = close * np.sqrt(0.5) + spec.overhead * data[:, column["OHL"]]
+        right = close * np.sqrt(0.5) + spec.overhead * data[:, column["OHR"]]
+        left = left + spec.room * data[:, column["AmbL"]]
+        right = right + spec.room * data[:, column["AmbR"]]
+        attack = int(np.argmax(np.abs(close) > 0.08 * np.abs(close).max()))
+        first = max(0, attack - int(0.001 * rate))
+        stroke = np.stack([left, right], axis=1)[first : first + int(spec.seconds * rate)]
+        if rate != RATE:
+            stroke = soxr.resample(stroke, rate, RATE, quality="HQ")
+        stroke = signal.sosfilt(dsp.highpass(spec.low_cut, 2), stroke, axis=0)
+        fade = min(len(stroke), int(0.08 * RATE))
+        stroke[-fade:] *= np.linspace(1.0, 0.0, fade)[:, None]
+        strokes.append(stroke / max(float(np.abs(stroke).max()), 1e-9))
+    return tuple(strokes)
+
+
+def kit_available() -> bool:
+    return (SAMPLES / "drskit" / "DRSKit" / "Snare" / "Snare.xml").exists()
+
+
+def kit(name: str, level: float, random: np.random.Generator) -> np.ndarray | None:
+    """Return one recorded stroke of a drum (two channels), or None if the kit has no such drum.
+
+    A louder stroke uses a recording of a harder stroke. Two strokes of the
+    same loudness do not use the same recording.
+    """
+    if name not in KIT:
+        return None
+    strokes = _kit_strokes(name)
+    place = level * (len(strokes) - 1) + random.integers(-2, 3)
+    return strokes[int(np.clip(place, 0, len(strokes) - 1))] * level

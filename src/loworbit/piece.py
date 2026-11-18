@@ -201,7 +201,7 @@ def melody(s: studio.Session, notes, first_bar: int, shift: int = 0, soft: float
 
 
 def air(s: studio.Session, beeps: tuple[float, float] | None = None, level_db: float = -52.0):
-    """The air of a section: hiss and crackle. `beeps`: the first and the last second of a signal."""
+    """The air of a section: hiss and crackle. `beeps`: the first and last second of a signal."""
     total = s.total
     sound_air = tapefx.hiss(total, level_db, seed=s.seed + 20) + tapefx.crackle(
         total, seed=s.seed + 30
@@ -226,7 +226,7 @@ class Result:
 
 
 def _ramp(s: studio.Session, first: float, last: float, start: float, end: float) -> np.ndarray:
-    """Return a curve that goes from `start` to `end` between two bars (in octaves if for a filter)."""
+    """Return a curve from `start` to `end` between two bars (in octaves if for a filter)."""
     time = np.arange(s.total) / RATE
     share = np.clip((time - s.time(first)) / max(s.time(last) - s.time(first), 1e-6), 0.0, 1.0)
     return start + (end - start) * share
