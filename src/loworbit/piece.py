@@ -458,13 +458,27 @@ def render(
         offset = int(round(start * RATE))
         full[offset : offset + len(mix)] += mix
     full = full[: int((cursor + 7.0) * RATE)]
-    if first == 0 and last is None:
+    whole = first == 0 and last is None
+    if whole:
         full = tapefx.stop(full.astype(np.float64), 2.5).astype(np.float32)
+        # Keep the mix before the master: a new master then needs no new mix.
+        folder.mkdir(parents=True, exist_ok=True)
+        np.save(folder / "premix.npy", full)
+    return finish(full, cues, folder, "low-orbit" if whole else f"sections-{first}-{last}")
+
+
+def remaster(folder: Path = Path("build/audio")) -> tuple[Path, dict]:
+    """Make the master again from the mix that the last full render kept."""
+    cues = json.loads((folder / "low-orbit.json").read_text(encoding="utf-8"))
+    return finish(np.load(folder / "premix.npy"), cues, folder, "low-orbit")
+
+
+def finish(full: np.ndarray, cues: dict, folder: Path, name: str) -> tuple[Path, dict]:
+    """Make the master of a mix and write the audio files and the cue sheet."""
     audio, numbers = studio.master(full)
     cues["seconds"] = round(len(audio) / RATE, 3)
     cues["numbers"] = {key: round(value, 2) for key, value in numbers.items()}
     folder.mkdir(parents=True, exist_ok=True)
-    name = "low-orbit" if first == 0 and last is None else f"sections-{first}-{last}"
     flac = folder / f"{name}.flac"
     soundfile.write(str(flac), audio, RATE, subtype="PCM_24")
     mp3 = folder / f"{name}.mp3"
@@ -479,6 +493,9 @@ def render(
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["master"]:
+        print(remaster()[0])
+        sys.exit()
     arguments = [int(value) for value in sys.argv[1:]]
     print(render(first=arguments[0] if arguments else 0,
                  last=arguments[1] if len(arguments) > 1 else None)[0])  # fmt: skip

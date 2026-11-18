@@ -449,6 +449,48 @@ def compose(
     return np.clip(screen * lamp, 0.0, 1.0)
 
 
+CARD_TITLE, CARD_NAME = "LOW ORBIT", "Brett Gilio"
+CARD_SECONDS = 5.0  # the card goes away after this time
+CARD_PLACE = (150, 800)  # on the screen
+
+
+def _card() -> tuple[np.ndarray, np.ndarray]:
+    """Return the small paper card with the title and the name: its colours and its cover."""
+    width, height, edge = 430, 170, 24
+    image = Image.new("RGBA", (width + 2 * edge, height + 2 * edge), (0, 0, 0, 0))
+    shadow = Image.new("L", image.size, 0)
+    ImageDraw.Draw(shadow).rectangle((edge + 6, edge + 8, edge + width + 6, edge + height + 8), 150)
+    image.putalpha(shadow.filter(ImageFilter.GaussianBlur(7)))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((edge, edge, edge + width, edge + height), fill=(226, 219, 198, 255))
+    draw.rectangle((edge + 8, edge + 8, edge + width - 8, edge + height - 8),
+                   outline=(60, 54, 46, 255), width=2)  # fmt: skip
+    middle = edge + width // 2
+    draw.text((middle, edge + 58), CARD_TITLE, font=font(58), fill=(34, 30, 26, 255), anchor="mm")
+    draw.line((edge + 60, edge + 98, edge + width - 60, edge + 98), fill=(60, 54, 46, 255), width=2)
+    draw.text((middle, edge + 128), CARD_NAME, font=font(36), fill=(34, 30, 26, 255), anchor="mm")
+    image = image.rotate(2.5, resample=Image.BICUBIC, expand=True)
+    data = np.asarray(image, dtype=np.float32) / 255.0
+    return data[:, :, :3], data[:, :, 3:]
+
+
+CARD, CARD_COVER = _card()
+
+
+def put_card(screen: np.ndarray, frame_number: int) -> np.ndarray:
+    """Put the card on the screen for the first seconds of the film. Then it fades fast."""
+    left = CARD_SECONDS * FPS - frame_number
+    if left <= 0:
+        return screen
+    share = min(1.0, left / 8.0)  # the last 8 frames
+    x, y = CARD_PLACE
+    height, width = CARD.shape[:2]
+    area = screen[y : y + height, x : x + width]
+    cover = CARD_COVER * share
+    area[:] = area * (1.0 - cover) + CARD * cover
+    return screen
+
+
 def render_range(job: tuple[int, int, str, str, str]) -> str:
     """Render the frames from `first` to `last` into one file. Return the name of the file."""
     first, last, cue_file, audio_file, target = job
@@ -536,6 +578,7 @@ def render_range(job: tuple[int, int, str, str, str]) -> str:
         track = sound_track(mono[frame_number * per_frame : (frame_number + 1) * per_frame + 1])
         weave = (int(round(float(weave_x[frame_number]))), int(random.integers(-1, 2)))
         screen = compose(np.clip(picture, 0.0, 1.0), track, weave, roll, lamp)
+        screen = put_card(screen, frame_number)
         writer.stdin.write((screen * 255.0).astype(np.uint8).tobytes())
     writer.stdin.close()
     writer.wait()

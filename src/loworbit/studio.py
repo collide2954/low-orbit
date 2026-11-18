@@ -19,7 +19,7 @@ from .audio import dsp, effects, loudness, synth
 from .audio.synth import LineNote
 
 RATE = dsp.RATE
-TARGET_LUFS = -14.0
+TARGET_LUFS = -12.0  # the reference recordings are near -10; streaming services use -14
 VARIANTS = 3  # the same note has this number of different renders
 
 
@@ -267,6 +267,13 @@ def master(mix: np.ndarray, gain: np.ndarray | None = None) -> tuple[np.ndarray,
         dsp.peaking(280.0, -3.0, 0.8),
         dsp.peaking(1100.0, 1.5, 0.6),
         dsp.shelf(10000.0, -1.0, high=True),
+        # The tone of the reference recordings (research/reference.csv): less of the lowest
+        # octave, and a high range that falls like old tape.
+        dsp.peaking(58.0, -5.5, 0.9),
+        dsp.peaking(120.0, 1.0, 1.2),
+        dsp.peaking(420.0, 1.2, 0.7),
+        dsp.shelf(2300.0, -4.3, high=True),
+        dsp.shelf(5800.0, -3.5, high=True),
     )
     if gain is not None:
         out = out * gain[: len(out), None]

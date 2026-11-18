@@ -10,12 +10,13 @@ Each row has a code for its evidence.
 | --- | --- |
 | R | Read: a source says it. The source is in the column "Source". |
 | K | Reference knowledge of the assistant that wrote the study: a known property of the style, the instrument, or the method. No measurement of a recording is behind it. |
-| M | Measured: the project measured it in audio. This edition of the study has no such row for the model (see "Limits"). |
+| M | Measured: the project measured it in audio (see "S5"). |
 
 ## Limits
 
 - Public writing about how Jake Chudnow makes his music is small. The study found one analysis of one track (tempo, key, chords), three short descriptions, and one note of the artist.
-- The project has no audio files of the model. It did not download recordings: they are not free. If the owner of the project gives files, the tools of the project can measure them (tempo, swing, tone balance, loudness, stereo width, pitch drift), and the rows with the code K can become rows with the code M.
+- The owner of the project told the project to get recordings of the model. The script `tools/reference.py` got 14 tracks from the SoundCloud page of the artist and measured them (see "S5"). The recordings stay in a local cache. They are not in the repository, and the work uses none of their sound.
+- The measurement gives the tempo, the key, the loudness, the tone balance, and the stereo width. It does not give the swing or the pitch drift: the rows for these keep the code K.
 - The assistant cannot hear. The measured values of the work (loudness, tone balance, level of each track) are checks of numbers, not a judgment of the sound.
 
 ## S1. The model: what the sources say
@@ -58,7 +59,7 @@ The reference lists of listeners put these artists near the model. Each has one 
 | Tempo | 80 to 100 quarter notes in a minute; "Moon Men" has 93 | 88 | R, K |
 | Metre | 4/4 | 4/4, with some bars of a different length (see the plan of the work) | R |
 | Timing of the drums | Each second sixteenth note is late (swing of hip-hop); the snare drum is a little behind the beat; no stroke is exactly on the grid | Swing 12 percent of a sixteenth note; snare drum 9 ms late; each stroke moves by about 3.5 ms | K |
-| Drum sound | A drum machine with recorded drums on top; dull, with saturation; a short room | Drum machine in code with recorded drums on top; saturation; low-pass filter at 11.5 kHz; parallel compressor | R, K |
+| Drum sound | A drum machine with recorded drums on top; dull, with saturation; a short room | Drum machine in code (the recorded drums on top are not made yet); saturation; low-pass filter at 11.5 kHz; parallel compressor | R, K |
 | Harmony | A loop of three or four chords; minor keys and modes; chords with a seventh and a ninth; one "wrong" note that gives the colour | Loops of four chords in D minor; a second part in a far key; the Phrygian second step as the colour note | R, K |
 | Melody | Short, with repeated notes and steps; syncopation; one clear leap | As the style; the leap is a fifth up | R |
 | Pad | A polyphonic analog synthesizer (Juno-6): one oscillator with saw and pulse, a sub oscillator, a low-pass filter with a slow envelope, a chorus | A model of that instrument: saw, pulse with a slow change of its width, sub oscillator, ladder filter, chorus with two rates | R, K |
@@ -68,7 +69,29 @@ The reference lists of listeners put these artists near the model. Each has one 
 | Tape | Slow wow, fast flutter, hiss | Wow of 7 cents below 1.3 Hz, flutter of 1.6 cents at 6 to 9 Hz, hiss at -52 dB | K |
 | Space | A dark plate reverb; an echo of three sixteenth notes | Plate of 2.8 s; echo with 42 percent feedback | K |
 | Form | A filter opens at the start; layers come one by one; a break; the loop comes back | As the style, for 8 minutes: see the plan of the work | R |
-| Loudness of the master | Moderate: the music has dynamics | -14 LUFS integrated, true peak below -1 dB | K |
+| Loudness of the master | -15 to -7 LUFS; the middle value is -9.9 | -12 LUFS integrated, peak below -1 dB (between the model and the -14 of the streaming services) | M |
+| Tone balance of the master | Dark: in relation to the octave of 1 kHz, the octave of 4 kHz is at -4.5 dB and the octave of 8 kHz at -10 dB | The master has filters that give these values (see "S5") | M |
+
+## S5. Measurements of 14 recordings of the model
+
+The table `research/reference.csv` has all numbers. The tracks: Banana, Columbia, Darwin, Flan, Going Down, Hanami, Hydrogen, Olive, Pines and Pavement, Pressed Pennies, Shallow Anne, Shona, You Could Sunbathe in this Storm, Turquoise.
+
+| Parameter | Smallest | Middle | Largest | *Low Orbit*, first master | Decision |
+| --- | --- | --- | --- | --- | --- |
+| Loudness (LUFS) | -15.1 | -9.9 | -7.3 | -14.0 | Make it -12 |
+| Loudness range (LU) | 0.7 | 4.8 | 11.1 | 11.0 | No change: the piece has a quiet start and a quiet end |
+| Octave of 63 Hz (dB, in relation to 1 kHz) | 1.2 | 9.0 | 16.8 | 15.1 | Decrease by 5 dB |
+| Octave of 125 Hz | -1.4 | 7.7 | 17.0 | 7.8 | No change |
+| Octave of 250 Hz | -1.8 | 8.3 | 12.4 | 7.0 | No change |
+| Octave of 500 Hz | -0.4 | 2.8 | 10.0 | 1.6 | Increase by 1 dB |
+| Octave of 2 kHz | -6.1 | -2.5 | 1.4 | 0.1 | Decrease by 2 dB |
+| Octave of 4 kHz | -14.0 | -4.5 | 4.5 | 0.4 | Decrease by 5 dB |
+| Octave of 8 kHz | -28.8 | -9.8 | 2.5 | -3.5 | Decrease by 6 dB |
+| Side signal (dB, in relation to the middle signal) | -20.7 | -11.9 | -3.2 | -14.4 | No change |
+
+- The first master of *Low Orbit* was too bright and had too much of the lowest octave. The model has the tone of old tape: the high range falls fast.
+- The tempo that the script finds is between 70 and 140. It can be half or two times the real tempo. Slow tracks are there (Darwin 88, Pines and Pavement 95, Hydrogen 103), thus 88 is in the style.
+- 10 of the 14 tracks are in a minor key. Olive and Pressed Pennies are in D minor, as is *Low Orbit*.
 
 ## S4. Sources
 
