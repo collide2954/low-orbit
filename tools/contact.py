@@ -1,6 +1,6 @@
 """Make contact sheets of a video: small pictures at regular times, with the time below each.
 
-Use: uv run python tools/contact.py VIDEO [SECONDS BETWEEN PICTURES]
+Use: uv run python tools/contact.py VIDEO [SECONDS BETWEEN PICTURES [FIRST SECOND [LAST SECOND]]]
 
 The script reads one frame at each time (it does not decode the full
 video). The sheets go to `.cache/contact`. They are for the selection of the
@@ -44,7 +44,11 @@ def main() -> None:
     step = float(sys.argv[2]) if len(sys.argv) > 2 else 12.0
     FOLDER.mkdir(parents=True, exist_ok=True)
     name = video.stem.split("~")[0][:36].replace(" ", "_")
-    times = [second for second in _range(0.0, duration(video), step)]
+    first = float(sys.argv[3]) if len(sys.argv) > 3 else 0.0
+    last = float(sys.argv[4]) if len(sys.argv) > 4 else duration(video)
+    if first:
+        name = f"{name}-from-{int(first)}"
+    times = [second for second in _range(first, last, step)]
     per_sheet = COLUMNS * ROWS
     for sheet_number in range(0, len(times), per_sheet):
         sheet = Image.new("RGB", (COLUMNS * SIZE[0], ROWS * (SIZE[1] + 16)), (0, 0, 0))

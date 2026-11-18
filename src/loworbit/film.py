@@ -20,6 +20,7 @@ Run: uv run python -m loworbit.film [first second] [last second]
 from __future__ import annotations
 
 import json
+import math
 import multiprocessing
 import subprocess
 import sys
@@ -55,23 +56,75 @@ class Clip:
 
 
 # The clips of each kind of picture. The times come from the contact sheets of the sources.
-POOLS: dict[str, list[Clip]] = {}
+E65 = "Expedition_65"
+E67 = "Expedition_67_68"
+OLD = "Mercury_Gemini_Apollo"
+
+
+def _clips(source: str, speed: float, *ranges: tuple[float, float]) -> list[Clip]:
+    return [Clip(source, first, last, speed) for first, last in ranges]
+
+
+def _near(source: str, speed: float, *moments: float) -> list[Clip]:
+    """Clips near the moments of a coarse contact sheet (a picture each 25 seconds)."""
+    return [Clip(source, moment - 4.0, moment + 6.0, speed) for moment in moments]
+
+
+POOLS: dict[str, list[Clip]] = {
+    "day": _clips(
+        E65, 3.0, (22, 98), (262, 282), (342, 382), (442, 482), (562, 582), (602, 642),
+        (702, 722), (782, 842), (982, 996), (1002, 1062), (1162, 1222), (1262, 1282),
+        (1322, 1382), (1402, 1542), (1562, 1582),
+    )
+    + _near(
+        E67, 3.0, 450, 475, 600, 625, 650, 750, 1325, 1375, 1525, 2125, 2275, 3025, 3075,
+        1600, 1625, 1850, 1875, 2625, 2650, 2675, 2725, 2750, 250,
+    ),
+    "night": _clips(E65, 1.5, (497, 512), (742, 762), (882, 902), (1657, 1672))
+    + _near(E65, 1.5, 1980, 2240, 2320, 2540, 2960)
+    + _near(
+        E67, 1.5, 100, 800, 2200, 2225, 2250, 2325, 2350, 2375, 2575, 2600, 2700, 2775, 2900,
+        2925,
+    ),
+    "aurora": _clips(
+        E65, 1.8, (122, 162), (202, 222), (402, 422), (522, 542), (922, 932), (962, 972),
+        (1102, 1122), (1242, 1252), (1302, 1312), (1602, 1612), (1920, 1940),
+    )
+    + _near(E65, 1.8, 2440, 2640, 2840, 2940)
+    + _near(E67, 1.8, 225, 525, 550, 725, 1725, 1975, 2425, 2550),
+    "dawn": _clips(E65, 1.5, (178, 188), (1138, 1148))
+    + _near(E67, 1.5, 275, 1775, 2025, 2175, 2400, 2975, 3000, 3125),
+    "dusk": _clips(E65, 1.8, (242, 252), (302, 322), (1082, 1092), (1622, 1648))
+    + _near(E65, 1.8, 2580, 2660)
+    + _near(E67, 1.8, 25, 50, 75, 125, 150, 1200, 1500, 1800, 1825, 2800, 2825),
+    # Film of the years 1965 to 1969 (Gemini and Apollo), at its own speed.
+    "old": _clips(
+        OLD, 1.0, (1909, 1927), (1937, 1949), (2188, 2196), (2196, 2210), (2212, 2246),
+        (2515, 2524), (2525, 2529), (2595, 2609), (2620, 2629), (2630, 2644), (2920, 2944),
+        (2950, 2990), (3030, 3044), (3415, 3432), (3435, 3450), (3470, 3498), (3500, 3512),
+        (3540, 3554),
+    ),
+    # The last section: things that go away.
+    "fall": _clips(OLD, 1.0, (2990, 3035), (2840, 2905), (2196, 2210), (3540, 3554))
+    + _clips(E65, 1.8, (1622, 1648), (302, 322))
+    + _near(E67, 1.8, 1200, 1500, 2800),
+}  # fmt: skip
 
 # The kind of picture and the look of each section of the music.
 LOOKS = {
-    "signal": ("old", "sepia"),
+    "signal": ("old", "print"),
     "day side": ("day", "warm"),
     "theme": ("day", "warm"),
     "second loop": ("day", "faded"),
-    "breath": ("old", "sepia"),
+    "breath": ("old", "print"),
     "terminator": ("dusk", "faded"),
     "night side": ("night", "cold"),
     "aurora": ("aurora", "vivid"),
     "sunrise": ("dawn", "warm"),
     "day side again": ("day", "warm"),
     "second loop again": ("day", "vivid"),
-    "breath again": ("old", "sepia"),
-    "signal lost": ("dusk", "faded"),
+    "breath again": ("old", "print"),
+    "signal lost": ("fall", "faded"),
 }
 
 # The words on the picture at the start of a section.
@@ -92,7 +145,8 @@ GRADES = {
     "faded": ((1.02, 1.0, 0.95), 0.6, 0.07, 0.92, 0.055),
     "cold": ((0.92, 1.0, 1.1), 0.8, 0.02, 1.12, 0.07),
     "vivid": ((1.0, 1.04, 1.06), 1.25, 0.02, 1.1, 0.06),
-    "sepia": ((1.1, 1.0, 0.82), 0.15, 0.06, 1.0, 0.085),
+    "sepia": ((1.1, 1.0, 0.82), 0.15, 0.06, 1.0, 0.07),
+    "print": ((1.03, 1.0, 0.96), 1.05, 0.03, 1.04, 0.03),  # for film that has its own grain
 }
 
 
@@ -145,9 +199,26 @@ def plan(cues: dict, seed: int = 7) -> list[Shot]:
             stop = min(end, moment + length)
             if end - stop < 0.9 * beat:
                 stop = end
-            count = used.get(pool_name, 0)
-            clip = pool[(count * 5 + int(random.integers(0, 2))) % len(pool)]
-            used[pool_name] = count + 1
+            # One shot in nine is a memory: film of the 1960s in the middle of the new pictures.
+            memory = number % 9 == 3 and pool_name not in ("old", "fall")
+            name = "old" if memory else pool_name
+            pool_now = POOLS[name] if memory else pool
+            count = used.get(name, 0)
+            # The step has no common factor with the size of the pool: no clip comes twice
+            # before all the clips have come.
+            step = next(n for n in (5, 7, 3, 1) if math.gcd(n, len(pool_now)) == 1)
+            clip = pool_now[(count * step) % len(pool_now)]
+            used[name] = count + 1
+            if clip.source == OLD and look != "print":
+                look_now = "print"
+            else:
+                look_now = look if random.uniform() > 0.12 else str(random.choice(list(GRADES)))
+            # A shot that is longer than its clip shows the clip more slowly.
+            need = (stop - moment) * clip.speed
+            if need > clip.last - clip.first:
+                clip = Clip(
+                    clip.source, clip.first, clip.last, (clip.last - clip.first) / (stop - moment)
+                )
             room = max(clip.last - clip.first - (stop - moment) * clip.speed, 0.0)
             shots.append(
                 Shot(
@@ -155,7 +226,7 @@ def plan(cues: dict, seed: int = 7) -> list[Shot]:
                     int(round(stop * FPS)),
                     clip,
                     float(random.uniform(0.0, room)),
-                    look if random.uniform() > 0.12 else str(random.choice(list(GRADES))),
+                    look_now,
                     photograph=number % 7 == 4,
                     backwards=number % 11 == 6,
                     section_start=first_of_section,
@@ -390,8 +461,8 @@ def render_range(job: tuple[int, int, str, str, str]) -> str:
     starts = {shot.first for shot in shots if shot.section_start}
     writer = subprocess.Popen(
         ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
-         "-s", f"{WIDTH}x{HEIGHT}", "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-preset",
-         "medium", "-crf", "17", "-pix_fmt", "yuv420p", target],
+         "-s", f"{WIDTH}x{HEIGHT}", "-r", str(FPS), "-i", "-", "-c:v", "libopenh264", "-b:v",
+         "18M", "-pix_fmt", "yuv420p", target],
         stdin=subprocess.PIPE,
     )  # fmt: skip
     leader_frames = int(5.6 * FPS)
@@ -427,7 +498,8 @@ def render_range(job: tuple[int, int, str, str, str]) -> str:
         _gains, _saturation, _black, _contrast, grain = GRADES[look]
         noise = random.normal(0.0, grain, (PICTURE_H // 2, PICTURE_W // 2)).astype(np.float32)
         noise = np.repeat(np.repeat(noise, 2, axis=0), 2, axis=1)
-        picture = picture + noise[:, :, None] * (1.15 - picture)
+        # The grain is strongest in the middle tones, and small in the black parts.
+        picture = picture + noise[:, :, None] * (0.22 + 1.6 * picture * (1.1 - picture))
         picture = dirt(picture * VIGNETTE, random, 1.6 if look == "sepia" else 1.0)
         # A scratch: a thin light line that stays at one place for some frames.
         scratch = np.random.default_rng(frame_number // 30)
